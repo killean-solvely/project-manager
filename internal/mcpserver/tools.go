@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/killeanjohnson/projectmanager/internal/models"
 
@@ -21,18 +22,18 @@ type projectIDIn struct {
 }
 
 type createIdeaIn struct {
-	Name        string   `json:"name" jsonschema:"the idea/project name"`
-	Summary     string   `json:"summary,omitempty" jsonschema:"a one-line summary"`
-	Description string   `json:"description,omitempty" jsonschema:"freeform markdown braindump"`
-	Tags        []string `json:"tags,omitempty" jsonschema:"optional tags"`
+	Name        string `json:"name" jsonschema:"the idea/project name"`
+	Summary     string `json:"summary,omitempty" jsonschema:"a one-line summary"`
+	Description string `json:"description,omitempty" jsonschema:"freeform markdown braindump"`
+	Tags        any    `json:"tags,omitempty" jsonschema:"optional tags — an array of strings, or a comma-separated string"`
 }
 
 type updateProjectIn struct {
-	ID          string    `json:"id" jsonschema:"the project id"`
-	Name        *string   `json:"name,omitempty"`
-	Summary     *string   `json:"summary,omitempty"`
-	Description *string   `json:"description,omitempty"`
-	Tags        *[]string `json:"tags,omitempty"`
+	ID          string  `json:"id" jsonschema:"the project id"`
+	Name        *string `json:"name,omitempty"`
+	Summary     *string `json:"summary,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Tags        any     `json:"tags,omitempty" jsonschema:"tags — an array of strings, or a comma-separated string"`
 }
 
 type promoteIn struct {
@@ -64,21 +65,21 @@ type upsertDocumentIn struct {
 }
 
 type createTaskIn struct {
-	ProjectID   string   `json:"project_id" jsonschema:"the project whose board to add to"`
-	ColumnID    string   `json:"column_id" jsonschema:"the target column id (see get_board)"`
-	Title       string   `json:"title" jsonschema:"task title"`
-	Description string   `json:"description,omitempty"`
-	Priority    string   `json:"priority,omitempty" jsonschema:"none, low, medium, or high"`
-	Labels      []string `json:"labels,omitempty"`
-	DocumentID  *string  `json:"document_id,omitempty" jsonschema:"optional id of a document this task is about"`
+	ProjectID   string  `json:"project_id" jsonschema:"the project whose board to add to"`
+	ColumnID    string  `json:"column_id" jsonschema:"the target column id (see get_board)"`
+	Title       string  `json:"title" jsonschema:"task title"`
+	Description string  `json:"description,omitempty"`
+	Priority    string  `json:"priority,omitempty" jsonschema:"none, low, medium, or high"`
+	Labels      any     `json:"labels,omitempty" jsonschema:"labels — an array of strings, or a comma-separated string"`
+	DocumentID  *string `json:"document_id,omitempty" jsonschema:"optional id of a document this task is about"`
 }
 
 type updateTaskIn struct {
-	ID          string    `json:"id" jsonschema:"the task id"`
-	Title       *string   `json:"title,omitempty"`
-	Description *string   `json:"description,omitempty"`
-	Priority    *string   `json:"priority,omitempty" jsonschema:"none, low, medium, or high"`
-	Labels      *[]string `json:"labels,omitempty"`
+	ID          string  `json:"id" jsonschema:"the task id"`
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
+	Priority    *string `json:"priority,omitempty" jsonschema:"none, low, medium, or high"`
+	Labels      any     `json:"labels,omitempty" jsonschema:"labels — an array of strings, or a comma-separated string"`
 }
 
 type moveTaskIn struct {
@@ -128,7 +129,7 @@ func (d *deps) registerTools(s *mcp.Server) {
 
 	mcp.AddTool(s, &mcp.Tool{Name: "create_idea", Description: "Capture a new project in the idea stage."},
 		func(ctx context.Context, _ *mcp.CallToolRequest, in createIdeaIn) (*mcp.CallToolResult, projectView, error) {
-			p, err := d.projects.CreateIdea(in.Name, in.Summary, in.Description, in.Tags)
+			p, err := d.projects.CreateIdea(in.Name, in.Summary, in.Description, toStringList(in.Tags))
 			if err != nil {
 				return toolErr(err), projectView{}, nil
 			}
@@ -141,7 +142,7 @@ func (d *deps) registerTools(s *mcp.Server) {
 			if err != nil {
 				return toolErr(fmt.Errorf("invalid id: %w", err)), projectView{}, nil
 			}
-			p, err := d.projects.UpdateDetails(id, in.Name, in.Summary, in.Description, in.Tags)
+			p, err := d.projects.UpdateDetails(id, in.Name, in.Summary, in.Description, toStringListPtr(in.Tags))
 			if err != nil {
 				return toolErr(err), projectView{}, nil
 			}
@@ -299,7 +300,7 @@ func (d *deps) registerTools(s *mcp.Server) {
 			if err != nil {
 				return toolErr(err), taskView{}, nil
 			}
-			t, err := d.boards.CreateTask(board.ID, colID, in.Title, in.Description, models.TaskPriority(in.Priority), in.Labels, docID)
+			t, err := d.boards.CreateTask(board.ID, colID, in.Title, in.Description, models.TaskPriority(in.Priority), toStringList(in.Labels), docID)
 			if err != nil {
 				return toolErr(err), taskView{}, nil
 			}
@@ -317,7 +318,7 @@ func (d *deps) registerTools(s *mcp.Server) {
 				p := models.TaskPriority(*in.Priority)
 				priority = &p
 			}
-			t, err := d.boards.UpdateTask(id, in.Title, in.Description, priority, in.Labels)
+			t, err := d.boards.UpdateTask(id, in.Title, in.Description, priority, toStringListPtr(in.Labels))
 			if err != nil {
 				return toolErr(err), taskView{}, nil
 			}
@@ -381,4 +382,45 @@ func optionalUUID(s *string) (*uuid.UUID, error) {
 		return nil, err
 	}
 	return &id, nil
+}
+
+// toStringList coerces a list-shaped MCP argument into a string slice. List
+// params (tags, labels) are typed `any` so that tolerant clients can pass either
+// a real JSON array or a comma-separated string — some clients stringify arrays.
+func toStringList(v any) []string {
+	switch x := v.(type) {
+	case []any:
+		out := make([]string, 0, len(x))
+		for _, e := range x {
+			if s, ok := e.(string); ok {
+				if s = strings.TrimSpace(s); s != "" {
+					out = append(out, s)
+				}
+			}
+		}
+		return out
+	case string:
+		out := []string{}
+		for _, p := range strings.Split(x, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				out = append(out, p)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+// toStringListPtr is toStringList for partial updates: a missing value (nil)
+// means "leave unchanged"; any provided value sets the list.
+func toStringListPtr(v any) *[]string {
+	if v == nil {
+		return nil
+	}
+	list := toStringList(v)
+	if list == nil {
+		list = []string{}
+	}
+	return &list
 }
