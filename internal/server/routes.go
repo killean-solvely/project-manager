@@ -28,6 +28,7 @@ func (s *Server) registerRoutes(mux chi.Router) {
 		r.Post("/projects/{id}/tasks", s.handleCreateTask)
 		r.Patch("/tasks/{id}", s.handleUpdateTask)
 		r.Post("/tasks/{id}/move", s.handleMoveTask)
+		r.Post("/tasks/{id}/link", s.handleLinkTaskDocument)
 		r.Delete("/tasks/{id}", s.handleDeleteTask)
 	})
 }

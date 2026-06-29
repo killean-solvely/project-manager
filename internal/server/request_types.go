@@ -60,3 +60,7 @@ type moveTaskRequest struct {
 	ColumnID string `json:"column_id"`
 	Position int    `json:"position"`
 }
+
+type linkTaskDocumentRequest struct {
+	DocumentID *string `json:"document_id"`
+}

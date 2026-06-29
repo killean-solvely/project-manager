@@ -138,6 +138,36 @@ func (s *Server) handleMoveTask(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, dto)
 }
 
+func (s *Server) handleLinkTaskDocument(w http.ResponseWriter, r *http.Request) {
+	id, err := uuidParam(r, "id")
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid task id")
+		return
+	}
+	var req linkTaskDocumentRequest
+	if err := decodeJSONAllowEmpty(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	var documentID *uuid.UUID
+	if req.DocumentID != nil && *req.DocumentID != "" {
+		did, err := uuid.Parse(*req.DocumentID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid document id")
+			return
+		}
+		documentID = &did
+	}
+	task, err := s.boards.LinkDocument(id, documentID)
+	if err != nil {
+		respondServiceError(w, err)
+		return
+	}
+	var dto taskDTO
+	dto.FromModel(task)
+	writeJSON(w, http.StatusOK, dto)
+}
+
 func (s *Server) handleDeleteTask(w http.ResponseWriter, r *http.Request) {
 	id, err := uuidParam(r, "id")
 	if err != nil {
