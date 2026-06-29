@@ -228,8 +228,10 @@ func (s *Service) UpdateTask(id uuid.UUID, title, description *string, priority 
 	return task, nil
 }
 
-// MoveTask moves a task to a column and position on the same board. Moving into a
-// "Done" column stamps CompletedAt; moving out clears it.
+// MoveTask moves a task to a column at a position, inserting it there and
+// renumbering that column so positions stay contiguous (0..n-1). That contiguous
+// renumber is what makes drag-reordering land correctly — within a column or
+// across columns. Moving into a "Done" column stamps CompletedAt; moving out clears it.
 func (s *Service) MoveTask(taskID, columnID uuid.UUID, position int) (*models.Task, error) {
 	task, err := s.tasks.FindByID(taskID)
 	if err != nil {
@@ -242,17 +244,55 @@ func (s *Service) MoveTask(taskID, columnID uuid.UUID, position int) (*models.Ta
 	if col.BoardID != task.BoardID {
 		return nil, errors.New("target column belongs to a different board")
 	}
+
+	// Destination column order (sorted by position), excluding the moved task,
+	// then insert it at the requested index.
+	boardTasks, err := s.tasks.FindByBoardID(task.BoardID)
+	if err != nil {
+		return nil, err
+	}
+	dest := make([]*models.Task, 0, len(boardTasks))
+	for _, t := range boardTasks {
+		if t.ColumnID == columnID && t.ID != taskID {
+			dest = append(dest, t)
+		}
+	}
+	if position < 0 {
+		position = 0
+	}
+	if position > len(dest) {
+		position = len(dest)
+	}
+	dest = append(dest, nil)
+	copy(dest[position+1:], dest[position:])
+	dest[position] = task
+
 	now := time.Now()
 	task.ColumnID = columnID
-	task.Position = position
 	if strings.EqualFold(col.Name, doneColumnName) {
 		task.CompletedAt = &now
 	} else {
 		task.CompletedAt = nil
 	}
 	task.UpdatedAt = now
-	if err := s.tasks.Save(task); err != nil {
-		return nil, err
+
+	// Renumber the destination column. The moved task is always saved; siblings
+	// only when their position actually changed. (The source column's remaining
+	// tasks keep their relative order, so they need no renumber.)
+	for i, t := range dest {
+		if t.ID == taskID {
+			t.Position = i
+			if err := s.tasks.Save(t); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if t.Position != i {
+			t.Position = i
+			if err := s.tasks.Save(t); err != nil {
+				return nil, err
+			}
+		}
 	}
 	return task, nil
 }

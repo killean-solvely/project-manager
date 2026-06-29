@@ -10,9 +10,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import type { Column as Col, Task } from '../../api/types'
 import { useBoard, useCreateTask, useMoveTask, useTasks } from '../../api/hooks'
-import { DraggableTask, TaskCardView } from './TaskCard'
+import { SortableTask, TaskCardView } from './TaskCard'
 import { TaskEditorModal } from './TaskEditorModal'
 
 export function BoardPanel({ projectId }: { projectId: string }) {
@@ -23,12 +24,15 @@ export function BoardPanel({ projectId }: { projectId: string }) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
+  const columns = board?.columns ?? []
+  const columnIds = useMemo(() => new Set(columns.map((c) => c.id)), [columns])
+
   const byColumn = useMemo(() => {
     const m: Record<string, Task[]> = {}
-    for (const c of board?.columns ?? []) m[c.id] = []
+    for (const c of columns) m[c.id] = []
     for (const t of tasks ?? []) (m[t.column_id] ??= []).push(t)
     return m
-  }, [board, tasks])
+  }, [columns, tasks])
 
   const activeTask = tasks?.find((t) => t.id === activeId) ?? null
 
@@ -36,11 +40,26 @@ export function BoardPanel({ projectId }: { projectId: string }) {
     setActiveId(null)
     const { active, over } = e
     if (!over) return
-    const target = String(over.id)
-    const task = tasks?.find((t) => t.id === active.id)
-    if (!task || task.column_id === target) return
-    const count = (byColumn[target] ?? []).length
-    move.mutate({ id: task.id, column_id: target, position: count })
+    const dragId = String(active.id)
+    const overId = String(over.id)
+
+    const moving = tasks?.find((t) => t.id === dragId)
+    if (!moving) return
+
+    // The drop target is either a column (empty space) or another card.
+    const toCol = columnIds.has(overId)
+      ? overId
+      : tasks?.find((t) => t.id === overId)?.column_id
+    if (!toCol) return
+
+    const destIds = (byColumn[toCol] ?? []).map((t) => t.id).filter((id) => id !== dragId)
+    const index = columnIds.has(overId) ? destIds.length : Math.max(0, destIds.indexOf(overId))
+
+    // No-op if it would land exactly where it already is.
+    const fromIds = (byColumn[moving.column_id] ?? []).map((t) => t.id)
+    if (toCol === moving.column_id && fromIds.indexOf(dragId) === index) return
+
+    move.mutate({ id: dragId, column_id: toCol, position: index })
   }
 
   if (isLoading || !board) return <p className="text-ink-secondary">Loading board…</p>
@@ -51,10 +70,11 @@ export function BoardPanel({ projectId }: { projectId: string }) {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={(e: DragStartEvent) => setActiveId(String(e.active.id))}
+        onDragCancel={() => setActiveId(null)}
         onDragEnd={onDragEnd}
       >
         <div className="flex gap-4 overflow-x-auto pb-2">
-          {board.columns.map((col) => (
+          {columns.map((col) => (
             <BoardColumn
               key={col.id}
               column={col}
@@ -104,9 +124,11 @@ function BoardColumn({
           isOver ? 'border-brand bg-brand-50' : 'border-line bg-muted/40'
         }`}
       >
-        {tasks.map((t) => (
-          <DraggableTask key={t.id} task={t} onOpen={onOpen} />
-        ))}
+        <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+          {tasks.map((t) => (
+            <SortableTask key={t.id} task={t} onOpen={onOpen} />
+          ))}
+        </SortableContext>
         <AddCard columnId={column.id} projectId={projectId} />
       </div>
     </div>

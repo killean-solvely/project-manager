@@ -1,4 +1,4 @@
-import { useDraggable } from '@dnd-kit/core'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Task } from '../../api/types'
 import { priorityMeta } from '../../lib/ui'
@@ -34,16 +34,18 @@ export function TaskCardView({ task, dragging }: { task: Task; dragging?: boolea
   )
 }
 
-export function DraggableTask({ task, onOpen }: { task: Task; onOpen: (t: Task) => void }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id })
+export function SortableTask({ task, onOpen }: { task: Task; onOpen: (t: Task) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+  })
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), opacity: isDragging ? 0.4 : 1 }}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
       {...attributes}
       {...listeners}
       onClick={() => onOpen(task)}
-      className="cursor-grab active:cursor-grabbing"
+      className="cursor-grab touch-none active:cursor-grabbing"
     >
       <TaskCardView task={task} />
     </div>

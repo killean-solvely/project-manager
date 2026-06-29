@@ -167,10 +167,41 @@ export function useUpdateTask(projectId: string) {
   })
 }
 
+// reorderTasks mirrors the server's insert-and-renumber so the optimistic cache
+// update matches what the backend will return.
+function reorderTasks(tasks: Task[], id: string, toCol: string, position: number): Task[] {
+  const moving = tasks.find((t) => t.id === id)
+  if (!moving) return tasks
+  const dest = tasks
+    .filter((t) => t.column_id === toCol && t.id !== id)
+    .sort((a, b) => a.position - b.position)
+  const pos = Math.max(0, Math.min(position, dest.length))
+  dest.splice(pos, 0, moving)
+  const newPos = new Map(dest.map((t, i) => [t.id, i]))
+  return tasks.map((t) => {
+    if (t.id === id) return { ...t, column_id: toCol, position: pos }
+    return newPos.has(t.id) ? { ...t, position: newPos.get(t.id)! } : t
+  })
+}
+
 export function useMoveTask(projectId: string) {
-  return useTaskWrite(projectId, (vars: { id: string; column_id: string; position: number }) =>
-    api.post<Task>(`/tasks/${vars.id}/move`, { column_id: vars.column_id, position: vars.position }),
-  )
+  const qc = useQueryClient()
+  const key = ['tasks', projectId]
+  return useMutation({
+    mutationFn: (vars: { id: string; column_id: string; position: number }) =>
+      api.post<Task>(`/tasks/${vars.id}/move`, { column_id: vars.column_id, position: vars.position }),
+    // Optimistically reorder so the card lands instantly; reconcile on settle.
+    onMutate: async (vars) => {
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<Task[]>(key)
+      if (prev) qc.setQueryData<Task[]>(key, reorderTasks(prev, vars.id, vars.column_id, vars.position))
+      return { prev }
+    },
+    onError: (_e, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: key }),
+  })
 }
 
 export function useLinkTaskDocument(projectId: string) {
