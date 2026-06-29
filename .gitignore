@@ -1,0 +1,7 @@
+# build output
+/bin/
+
+# local SQLite database + WAL sidecars
+*.db
+*.db-wal
+*.db-shm
