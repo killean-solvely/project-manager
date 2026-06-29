@@ -19,15 +19,15 @@ export function Modal({ title, onClose, children, footer, wide }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className={`w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} rounded-card bg-surface`}
+        className={`flex max-h-[90vh] w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} flex-col overflow-hidden rounded-card bg-surface`}
         style={{ boxShadow: '0 20px 40px 0 rgba(0,0,0,.18), 0 8px 16px 0 rgba(0,0,0,.10)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+        <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-3.5">
           <h3 className="text-lg font-medium">{title}</h3>
           <button
             onClick={onClose}
@@ -37,9 +37,11 @@ export function Modal({ title, onClose, children, footer, wide }: Props) {
             &times;
           </button>
         </div>
-        <div className="px-5 py-4">{children}</div>
+        <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-2 border-t border-line px-5 py-3.5">{footer}</div>
+          <div className="flex shrink-0 justify-end gap-2 border-t border-line px-5 py-3.5">
+            {footer}
+          </div>
         )}
       </div>
     </div>

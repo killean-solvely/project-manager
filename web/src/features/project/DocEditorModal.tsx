@@ -26,6 +26,7 @@ export function DocEditorModal({ projectId, doc, presetType, onClose }: Props) {
   const [title, setTitle] = useState(doc?.title ?? '')
   const [content, setContent] = useState(doc?.content ?? '')
   const [status, setStatus] = useState<DocumentStatus>(doc?.status ?? 'draft')
+  const [view, setView] = useState<'edit' | 'preview'>('edit')
   const upsert = useUpsertDocument(projectId)
 
   const submit = () => {
@@ -89,27 +90,34 @@ export function DocEditorModal({ projectId, doc, presetType, onClose }: Props) {
             placeholder={docTypeLabel[type]}
           />
         </Field>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div>
-            <span className="mb-1 block font-display text-xs font-medium text-ink-secondary">
-              Markdown
-            </span>
+        <div>
+          <div className="mb-2 inline-flex rounded-lg border border-line p-0.5">
+            {(['edit', 'preview'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setView(v)}
+                className={`rounded-md px-3 py-1 text-sm font-medium capitalize transition-colors ${
+                  view === v ? 'bg-brand text-white' : 'text-ink-secondary hover:bg-muted'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          {view === 'edit' ? (
             <textarea
-              className={`${controlClass} min-h-72 resize-y font-mono text-xs`}
+              className={`${controlClass} min-h-80 resize-y font-mono text-xs`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="# Heading&#10;&#10;Write the doc…"
             />
-          </div>
-          <div>
-            <span className="mb-1 block font-display text-xs font-medium text-ink-secondary">
-              Preview
-            </span>
+          ) : (
             <div
-              className="prose-doc min-h-72 overflow-auto rounded-lg border border-line bg-page px-3 py-2 text-sm"
+              className="prose-doc min-h-80 rounded-lg border border-line bg-page px-3 py-2 text-sm"
               dangerouslySetInnerHTML={{ __html: renderMarkdown(content || '_Nothing yet…_') }}
             />
-          </div>
+          )}
         </div>
         {upsert.isError && <p className="text-sm text-error">{(upsert.error as Error).message}</p>}
       </div>
