@@ -89,6 +89,7 @@ curl -s localhost:4523/api/projects/<id>/documents/missing
 | POST | `/api/projects/{id}/tasks` | create a task (`{column_id,title,...}`) |
 | PATCH | `/api/tasks/{id}` | update a task |
 | POST | `/api/tasks/{id}/move` | move a task (`{column_id,position}`) |
+| POST | `/api/tasks/{id}/link` | link/unlink a document (`{document_id?}`) |
 | DELETE | `/api/tasks/{id}` | delete a task |
 
 ## MCP server
@@ -133,6 +134,21 @@ What it exposes:
 > (see [Persistence](#persistence)), so anything created through Claude shows up in
 > the API and vice versa — they default to the same path.
 
+## Web frontend
+
+A React + TypeScript + Tailwind SPA in `web/`, built with Vite. It talks to the API
+through a dev proxy (`/api` → `:4523`), so run both together:
+
+```sh
+make run                  # terminal 1: API on :4523
+make web-install          # first time only
+make web                  # terminal 2: UI on :5173
+```
+
+Open http://localhost:5173 — the portfolio shows projects by lifecycle stage; open a
+project for its docs library (markdown editor + completeness checklist) and its kanban
+board (drag cards between columns).
+
 ## Development
 
 ```sh
@@ -145,4 +161,7 @@ make tidy     # go mod tidy
 
 1. ~~`cmd/mcp` — stdio MCP server over the same services.~~ **Done.**
 2. ~~SQLite persistence shared by both binaries.~~ **Done.**
-3. **`web/`** — the React frontend (portfolio + project dashboard).
+3. ~~`web/` — the React frontend (portfolio + project dashboard).~~ **Done.**
+
+Possible polish: search/filter across projects, intra-column drag reordering,
+per-project doc templates, and auth if it ever leaves the local machine.

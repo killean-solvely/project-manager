@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+/* Design tokens (Viewrail design system) exposed as Tailwind theme values, so
+   utilities like bg-brand, text-ink-secondary, rounded-card, font-display work. */
+@theme {
+  --font-display: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* brand / CTA */
+  --color-brand: #2b70ca;
+  --color-brand-hover: #295ba4;
+  --color-brand-active: #004da6;
+  --color-brand-50: #eaf1fa;
+  --color-brand-100: #c6dbf7;
+  --color-brand-200: #87b5ef;
+  --color-brand-300: #468ce4;
+
+  /* surfaces */
+  --color-page: #f7f7f7;
+  --color-surface: #ffffff;
+  --color-muted: #f0f0f0;
+
+  /* lines */
+  --color-line: #d7d7d7;
+  --color-line-strong: #5e5e5e;
+
+  /* ink */
+  --color-ink: #000000;
+  --color-ink-secondary: #5e5e5e;
+  --color-ink-tertiary: #9e9e9e;
+
+  /* status */
+  --color-error: #d91e28;
+  --color-success: #499082;
+  --color-warning: #f37c2a;
+  --color-help: #775ece;
+  --color-note: #a28d43;
+
+  --radius-card: 16px;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-page);
+  }
+
+  body {
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+
+  button {
+    cursor: pointer;
+  }
+}
+
+/* Markdown rendered in document viewers. */
+.prose-doc {
+  color: var(--color-ink);
+  line-height: 1.7;
+  word-break: break-word;
+}
+.prose-doc h1 { font-family: var(--font-display); font-weight: 600; font-size: 1.5rem; margin: 1rem 0 0.5rem; }
+.prose-doc h2 { font-family: var(--font-display); font-weight: 500; font-size: 1.25rem; margin: 1rem 0 0.5rem; }
+.prose-doc h3 { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; margin: 0.75rem 0 0.4rem; }
+.prose-doc p { margin: 0.5rem 0; }
+.prose-doc ul { list-style: disc; padding-left: 1.4rem; margin: 0.5rem 0; }
+.prose-doc ol { list-style: decimal; padding-left: 1.4rem; margin: 0.5rem 0; }
+.prose-doc li { margin: 0.2rem 0; }
+.prose-doc code { font-family: var(--font-mono); background: var(--color-muted); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.85em; }
+.prose-doc pre { background: var(--color-muted); padding: 0.75rem; border-radius: 8px; overflow-x: auto; margin: 0.5rem 0; }
+.prose-doc pre code { background: none; padding: 0; }
+.prose-doc a { color: var(--color-brand); text-decoration: underline; }
+.prose-doc blockquote { border-left: 3px solid var(--color-line); padding-left: 0.75rem; color: var(--color-ink-secondary); margin: 0.5rem 0; }
