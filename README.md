@@ -22,6 +22,7 @@ API (`cmd/api`) and a stdio MCP server (`cmd/mcp`) — and neither holds logic.
 cmd/api/                 HTTP server: wires repos + services + chi
 cmd/mcp/                 MCP server: wires repos + services + stdio
 internal/
+  config/                env + .env loading (godotenv + viper), defaults
   models/                pure domain types (uuid IDs, no tags)
   persistence/           repo interfaces + implementations
     memory/              in-memory repos (used in tests)
@@ -33,20 +34,35 @@ internal/
   mcpserver/             MCP tools, resources, prompts
 ```
 
+## Configuration
+
+Settings are loaded once at startup by `internal/config` (godotenv + viper) and
+passed down explicitly. Sources, highest precedence first: real environment
+variables, then a `.env` file in the working directory (optional - see
+`.env.example`), then built-in defaults.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `4523` | HTTP listen port for `cmd/api` |
+| `DB_PATH` | `~/.projectmanager/projectmanager.db` | SQLite file, shared by `cmd/api` and `cmd/mcp` |
+
+`PM_DB_PATH` is still honored as a legacy alias for `DB_PATH`; if both are set,
+`DB_PATH` wins.
+
 ## Persistence
 
 State lives in a single SQLite file (pure-Go `modernc.org/sqlite`, no cgo). Both
 `cmd/api` and `cmd/mcp` open the same file, so they share one store.
 
 - Default path: `~/.projectmanager/projectmanager.db`
-- Override with `PM_DB_PATH`, e.g. `PM_DB_PATH=./dev.db make run`
+- Override with `DB_PATH`, e.g. `DB_PATH=./dev.db make run` (or set it in `.env`)
 
 The schema is applied automatically on open; there is no separate migration step yet.
 
 ## Run
 
 ```sh
-make run          # starts the API on :4523
+make run          # starts the API on :4523 (set PORT to change)
 # or: go run ./cmd/api
 
 curl localhost:4523/health

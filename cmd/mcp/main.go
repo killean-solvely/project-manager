@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/killeanjohnson/projectmanager/internal/boards"
+	"github.com/killeanjohnson/projectmanager/internal/config"
 	"github.com/killeanjohnson/projectmanager/internal/docs"
 	"github.com/killeanjohnson/projectmanager/internal/mcpserver"
 	"github.com/killeanjohnson/projectmanager/internal/persistence/sqlite"
@@ -14,9 +15,14 @@ import (
 )
 
 func main() {
-	// Same DB path as cmd/api by default (PM_DB_PATH, else ~/.projectmanager/...),
+	// Same DB path as cmd/api by default (DB_PATH, else ~/.projectmanager/...),
 	// so the API and MCP server share one store.
-	db, path, err := sqlite.Open()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("load config: %v", err)
+	}
+
+	db, err := sqlite.OpenAt(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
@@ -35,7 +41,7 @@ func main() {
 	srv := mcpserver.New(projectsSvc, docsSvc, boardsSvc)
 
 	// log goes to stderr, so it won't corrupt the stdio JSON-RPC stream on stdout.
-	log.Printf("projectmanager MCP server running on stdio (db: %s)", path)
+	log.Printf("projectmanager MCP server running on stdio (db: %s)", cfg.DBPath)
 	if err := srv.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		log.Fatal(err)
 	}

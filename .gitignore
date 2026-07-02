@@ -1,6 +1,9 @@
 # build output
 /bin/
 
+# local environment overrides (see .env.example)
+.env
+
 # local SQLite database + WAL sidecars
 *.db
 *.db-wal

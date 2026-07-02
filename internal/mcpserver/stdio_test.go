@@ -41,7 +41,9 @@ func TestStdioBinary(t *testing.T) {
 
 // TestStdioBinarySharesDatabase proves the shared-store goal: a project written
 // to the DB file by one process is visible to the MCP binary pointed at the same
-// PM_DB_PATH — exactly how cmd/api and cmd/mcp will share data.
+// DB path - exactly how cmd/api and cmd/mcp will share data. It deliberately
+// passes the legacy PM_DB_PATH alias (not DB_PATH) so the backward-compat name
+// stays covered end to end.
 func TestStdioBinarySharesDatabase(t *testing.T) {
 	ctx := context.Background()
 	dbPath := filepath.Join(t.TempDir(), "shared.db")

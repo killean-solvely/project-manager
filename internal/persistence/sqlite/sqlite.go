@@ -20,23 +20,16 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
-// Open opens the database at the resolved path (PM_DB_PATH, or
-// ~/.projectmanager/projectmanager.db by default) and applies the schema. Using
-// the same path from cmd/api and cmd/mcp is what lets them share one store.
-func Open() (*sql.DB, string, error) {
-	path, err := resolveDBPath()
-	if err != nil {
-		return nil, "", err
-	}
-	db, err := OpenAt(path)
-	if err != nil {
-		return nil, "", err
-	}
-	return db, path, nil
-}
-
-// OpenAt opens (creating if needed) the database at an explicit path.
+// OpenAt opens (creating if needed) the database at an explicit path and
+// applies the schema. The path comes from config.Load at the composition
+// root; using the same path from cmd/api and cmd/mcp is what lets them share
+// one store.
 func OpenAt(path string) (*sql.DB, error) {
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, err
+		}
+	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
@@ -60,21 +53,6 @@ func OpenAt(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("apply schema: %w", err)
 	}
 	return db, nil
-}
-
-func resolveDBPath() (string, error) {
-	if p := os.Getenv("PM_DB_PATH"); p != "" {
-		return p, nil
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Join(home, ".projectmanager")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	return filepath.Join(dir, "projectmanager.db"), nil
 }
 
 // --- scan/serialize helpers ---
