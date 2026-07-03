@@ -1,0 +1,25 @@
+# VCS / CI
+.git
+.gitignore
+.github
+
+# The frontend is built by web/Dockerfile with ./web as its OWN build context;
+# the backend image never touches it. Excluding it here keeps web/node_modules
+# and the Vite bundle out of the backend build context.
+web/
+
+# Go build output
+bin/
+
+# Local SQLite databases + WAL sidecars
+*.db
+*.db-wal
+*.db-shm
+
+# Local env / editor / OS cruft
+.env
+.claude/
+.DS_Store
+
+# Docs / scratch (not needed to build the binary)
+*.md

@@ -1,0 +1,52 @@
+# Two-image deployment:
+#   - api: the distroless Go backend (cmd/api), REST + MCP-over-HTTP on :4523.
+#   - web: nginx serving the built SPA and reverse-proxying /api, /health, /mcp
+#     to api, so the browser talks to one origin (no CORS).
+# The browser reaches only web (published on 8080); api is internal-only.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: projectmanager-api:latest
+    environment:
+      PORT: "4523"
+      DB_PATH: /data/projectmanager.db
+      MCP_HTTP_ENABLED: "true"
+    volumes:
+      - pmdata:/data
+    # Internal only: reached via the web proxy on the compose network. Publish a
+    # host port here (e.g. "4523:4523") only if you want to hit the API directly,
+    # e.g. for MCP-over-HTTP with a loopback Host (see the /mcp caveat in README).
+    expose:
+      - "4523"
+    restart: unless-stopped
+    # No healthcheck on this service: the backend image is distroless (no
+    # shell/curl/wget, by design) so a compose healthcheck command cannot execute
+    # inside it, and we deliberately bake no probe into the image. The stack's
+    # HTTP /health probe lives on the web service below - it reaches /health
+    # through the proxy and so validates nginx + api + the proxy path at once.
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: projectmanager-web:latest
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      # nginx:alpine ships busybox wget; /health is proxied through to api, so a
+      # 200 here means the whole request path (nginx -> api) is healthy. Use
+      # 127.0.0.1, not "localhost": alpine resolves localhost to ::1 first but
+      # nginx `listen 80;` binds IPv4 only, so a localhost probe is refused.
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  pmdata:

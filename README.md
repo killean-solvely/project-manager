@@ -181,6 +181,65 @@ Open http://localhost:5173 — the portfolio shows projects by lifecycle stage; 
 project for its docs library (markdown editor + completeness checklist) and its kanban
 board (drag cards between columns).
 
+## Docker
+
+Two images, run together with Compose:
+
+- **`api`** - the Go backend (`cmd/api`), built multi-stage on `golang:1.25` as a
+  static `CGO_ENABLED=0` binary (the SQLite driver is pure-Go `modernc.org/sqlite`,
+  so no cgo) onto `gcr.io/distroless/static:nonroot`. Runs as uid 65532, serves
+  REST + MCP-over-HTTP on `4523`.
+- **`web`** - the SPA, built with `node:22` (`npm ci && npm run build`) and served
+  by `nginx:alpine` from the Vite `dist`. nginx also reverse-proxies `/api`,
+  `/health`, and `/mcp` through to `api`, so the browser uses **one origin** (no
+  CORS, no SPA base-URL config, no Go change). Only `web` is published to the host.
+
+```sh
+docker compose up --build          # build both images and start the stack
+# open http://localhost:8080       # the SPA, served by nginx
+curl -s localhost:8080/health      # -> OK  (proxied through to the api)
+docker compose down                # stop; add -v to also drop the pmdata volume
+```
+
+Build the images individually if needed:
+
+```sh
+docker build -t projectmanager-api:latest .        # backend (context: repo root)
+docker build -t projectmanager-web:latest ./web    # frontend (context: ./web)
+```
+
+Configuration is the same [env surface](#configuration) (`PORT`, `DB_PATH`,
+`MCP_HTTP_ENABLED`); the image ships defaults (`DB_PATH=/data/projectmanager.db`),
+and compose sets them explicitly. Real env vars override any baked `.env` (which
+`.dockerignore` keeps out of the image).
+
+**Data volume + WAL.** The SQLite file lives on the named `pmdata` volume mounted
+at `/data`. The image bakes a nonroot-owned `/data`, so a fresh volume is writable
+by uid 65532 without extra flags. WAL is on, producing `projectmanager.db-wal` and
+`projectmanager.db-shm` sidecars next to the db - the volume is the **directory**
+`/data` (not a single-file mount) so the sidecars persist together.
+
+**Single instance.** SQLite runs single-writer (`SetMaxOpenConns(1)`); this is a
+single-instance service. Do **not** scale `api` to multiple replicas against one
+volume.
+
+**Healthcheck.** Orchestrator-level only: the compose healthcheck lives on the
+`web` service and probes `/health` (proxied to `api`), so one check validates
+nginx + api + the proxy path. The backend image is distroless (no shell/curl by
+design), so there is no in-image `HEALTHCHECK` and no baked-in probe.
+
+**`/mcp` through the proxy (known limitation).** The go-sdk MCP handler enables
+DNS-rebinding protection by default, which **can** reject `/mcp` with **403** when
+the request `Host` is non-loopback (as it is behind a proxy). This is left as a
+conscious, documented limitation - the Go code is deliberately not changed to add
+an opt-out (`DisableLocalhostProtection`). In the smoke test against the current
+go-sdk version, `/mcp` proxied through nginx worked (returned valid JSON-RPC), so
+it is not broken today - but treat it as a version-dependent risk. If `/mcp` ever
+starts returning 403 through the proxy, reach the `api` service directly with a
+loopback `Host` instead (publish `api`'s port and hit `127.0.0.1`). `/api` and
+`/health` are unaffected. `/mcp` is also unauthenticated (inherits the API's
+no-auth posture) - add auth at a proxy/middleware before exposing it.
+
 ## Development
 
 ```sh
