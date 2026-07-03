@@ -20,10 +20,10 @@ import (
 //go:embed schema.sql
 var schemaSQL string
 
-// OpenAt opens (creating if needed) the database at an explicit path and
-// applies the schema. The path comes from config.Load at the composition
-// root; using the same path from cmd/api and cmd/mcp is what lets them share
-// one store.
+// OpenAt opens the database at an explicit path and applies the schema,
+// creating the file and its parent directory if needed. The path comes from
+// config.Load at the composition root; using the same path from cmd/api and
+// cmd/mcp is what lets them share one store.
 func OpenAt(path string) (*sql.DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
