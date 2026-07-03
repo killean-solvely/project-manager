@@ -30,7 +30,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("open database: %v", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	log.Printf("using database at %s", cfg.DBPath)
 
 	projectsRepo := sqlite.NewProjectsRepository(db)

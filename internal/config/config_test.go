@@ -17,7 +17,7 @@ func setup(t *testing.T) string {
 	t.Chdir(dir)
 	for _, name := range []string{"PORT", "DB_PATH", "PM_DB_PATH", "MCP_HTTP_ENABLED"} {
 		t.Setenv(name, "")
-		os.Unsetenv(name)
+		_ = os.Unsetenv(name)
 	}
 	return dir
 }

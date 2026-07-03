@@ -97,7 +97,7 @@ func TestMCPAndRESTShareServices(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /api/projects: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET /api/projects status = %d", resp.StatusCode)
 	}
@@ -128,7 +128,7 @@ func TestMCPDisabledOmitsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST /mcp: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("with MCP disabled, /mcp status = %d, want 404", resp.StatusCode)
 	}
@@ -137,7 +137,7 @@ func TestMCPDisabledOmitsRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET /health: %v", err)
 	}
-	defer health.Body.Close()
+	defer func() { _ = health.Body.Close() }()
 	if health.StatusCode != http.StatusOK {
 		t.Fatalf("health status = %d, want 200", health.StatusCode)
 	}
@@ -165,7 +165,7 @@ func TestMCPHTTPDNSRebindingRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("do request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("non-loopback Host: status = %d, want 403", resp.StatusCode)
 	}

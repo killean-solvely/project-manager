@@ -46,9 +46,9 @@ func Load() (Config, error) {
 	v.SetDefault("mcp_http_enabled", true)
 
 	// Later names are fallbacks: DB_PATH wins over the legacy PM_DB_PATH.
-	v.BindEnv("port", "PORT")
-	v.BindEnv("db_path", "DB_PATH", "PM_DB_PATH")
-	v.BindEnv("mcp_http_enabled", "MCP_HTTP_ENABLED")
+	_ = v.BindEnv("port", "PORT")
+	_ = v.BindEnv("db_path", "DB_PATH", "PM_DB_PATH")
+	_ = v.BindEnv("mcp_http_enabled", "MCP_HTTP_ENABLED")
 
 	// Resolve the default lazily so an explicit DB_PATH/PM_DB_PATH still
 	// works in environments without a home directory.
