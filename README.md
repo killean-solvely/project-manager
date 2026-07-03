@@ -17,9 +17,12 @@ See [`PROJECT_SPEC.md`](PROJECT_SPEC.md) for the full design and rationale.
 
 All behavior lives in the service layer. Two thin adapters sit over it — an HTTP
 API (`cmd/api`) and a stdio MCP server (`cmd/mcp`) — and neither holds logic.
+`cmd/api` also mounts the same MCP server as an HTTP handler at `/mcp`, so MCP
+ships over both stdio and HTTP from one service graph and one database handle.
 
 ```
-cmd/api/                 HTTP server: wires repos + services + chi
+cmd/api/                 HTTP server: wires repos + services + chi; also mounts
+                         MCP over HTTP at /mcp (see MCP_HTTP_ENABLED below)
 cmd/mcp/                 MCP server: wires repos + services + stdio
 internal/
   config/                env + .env loading (godotenv + viper), defaults
@@ -45,6 +48,7 @@ variables, then a `.env` file in the working directory (optional - see
 |---|---|---|
 | `PORT` | `4523` | HTTP listen port for `cmd/api` |
 | `DB_PATH` | `~/.projectmanager/projectmanager.db` | SQLite file, shared by `cmd/api` and `cmd/mcp` |
+| `MCP_HTTP_ENABLED` | `true` | Mount the MCP server at `/mcp` in `cmd/api`; does not affect the stdio `cmd/mcp` binary |
 
 `PM_DB_PATH` is still honored as a legacy alias for `DB_PATH`; if both are set,
 `DB_PATH` wins.
@@ -110,16 +114,28 @@ curl -s localhost:4523/api/projects/<id>/documents/missing
 
 ## MCP server
 
-The MCP server exposes the same services to Claude (or any MCP client) over stdio —
-it imports `internal/projects`, `internal/docs`, and `internal/boards` directly and
-holds no logic of its own.
+The MCP server exposes the same services to Claude (or any MCP client) — it
+imports `internal/projects`, `internal/docs`, and `internal/boards` directly and
+holds no logic of its own. It is served over two transports from one
+`*mcp.Server`, built once and shared:
+
+- **stdio** — the `cmd/mcp` binary, for local editor/desktop clients that launch
+  a subprocess.
+- **HTTP** — mounted at `/mcp` in `cmd/api` (streamable HTTP, stateless, JSON
+  responses), gated by `MCP_HTTP_ENABLED` (default `true`, see
+  [Configuration](#configuration)). It shares `cmd/api`'s port, database handle,
+  and no-auth posture — add auth at a proxy or middleware before exposing it
+  beyond the local machine. The go-sdk handler also enables DNS-rebinding
+  protection by default, so requests must reach it via a loopback `Host` header
+  in local dev (or set `DisableLocalhostProtection` behind a trusted proxy for
+  remote deploys).
 
 ```sh
-make mcp           # run directly (go run ./cmd/mcp)
+make mcp           # run the stdio server directly (go run ./cmd/mcp)
 make mcp-build     # build a binary at bin/pm-mcp (faster startup for clients)
 ```
 
-Wire it into **Claude Code**:
+Wire the stdio server into **Claude Code**:
 
 ```sh
 make mcp-build

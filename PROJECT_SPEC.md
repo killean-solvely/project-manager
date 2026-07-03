@@ -28,7 +28,7 @@ that go active through to documented, well-tracked work. Built MCP-first so Clau
 - Scope: single-user, local-first.
 - Persistence: in-memory first, then **SQLite** (file-based, zero-ops). No Postgres unless it ever goes hosted.
 - Docs: a **separate first-class library**; task cards *link* to docs. Board = work, docs = deliverables.
-- MCP transport: **local stdio**, in-process (the MCP binary imports the service layer directly — no network hop).
+- MCP transport: **local stdio** (`cmd/mcp`, in-process, no network hop) **and streamable HTTP**, mounted at `/mcp` in the `cmd/api` chi router, stateless, gated by `MCP_HTTP_ENABLED` (default `true`).
 
 ---
 
@@ -249,4 +249,4 @@ three MCP primitives:
 - Document version history.
 - Full-text search across docs and tasks.
 - Auth + multi-user (only if it ever leaves the local machine).
-- Remote HTTP/SSE MCP transport (the transport adapter is designed so this can drop in later).
+- SSE MCP transport (streamable HTTP is implemented at `/mcp`; SSE remains unadopted).
