@@ -15,7 +15,7 @@ func setup(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	t.Chdir(dir)
-	for _, name := range []string{"PORT", "DB_PATH", "PM_DB_PATH"} {
+	for _, name := range []string{"PORT", "DB_PATH", "PM_DB_PATH", "MCP_HTTP_ENABLED"} {
 		t.Setenv(name, "")
 		os.Unsetenv(name)
 	}
@@ -39,6 +39,22 @@ func TestDefaults(t *testing.T) {
 	want := filepath.Join(home, ".projectmanager", "projectmanager.db")
 	if cfg.DBPath != want {
 		t.Errorf("DBPath = %q, want %q", cfg.DBPath, want)
+	}
+	if !cfg.MCPHTTPEnabled {
+		t.Errorf("MCPHTTPEnabled = false, want true (default)")
+	}
+}
+
+func TestMCPHTTPEnabledDisable(t *testing.T) {
+	setup(t)
+	t.Setenv("MCP_HTTP_ENABLED", "false")
+
+	cfg, err := config.Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.MCPHTTPEnabled {
+		t.Errorf("MCPHTTPEnabled = true, want false when MCP_HTTP_ENABLED=false")
 	}
 }
 

@@ -27,6 +27,10 @@ type Config struct {
 	// cmd/mcp. Env: DB_PATH, with PM_DB_PATH kept as a backward-compat
 	// alias; DB_PATH wins when both are set.
 	DBPath string
+	// MCPHTTPEnabled gates whether cmd/api mounts the MCP server as an
+	// HTTP handler at /mcp. Env: MCP_HTTP_ENABLED; defaults to true. The
+	// stdio binary (cmd/mcp) is unaffected by this setting.
+	MCPHTTPEnabled bool
 }
 
 // Load reads the optional .env file and the environment, and returns the
@@ -39,10 +43,12 @@ func Load() (Config, error) {
 
 	v := viper.New()
 	v.SetDefault("port", "4523")
+	v.SetDefault("mcp_http_enabled", true)
 
 	// Later names are fallbacks: DB_PATH wins over the legacy PM_DB_PATH.
 	v.BindEnv("port", "PORT")
 	v.BindEnv("db_path", "DB_PATH", "PM_DB_PATH")
+	v.BindEnv("mcp_http_enabled", "MCP_HTTP_ENABLED")
 
 	// Resolve the default lazily so an explicit DB_PATH/PM_DB_PATH still
 	// works in environments without a home directory.
@@ -56,8 +62,9 @@ func Load() (Config, error) {
 	}
 
 	return Config{
-		Port:   v.GetString("port"),
-		DBPath: dbPath,
+		Port:           v.GetString("port"),
+		DBPath:         dbPath,
+		MCPHTTPEnabled: v.GetBool("mcp_http_enabled"),
 	}, nil
 }
 
