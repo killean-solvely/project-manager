@@ -25,10 +25,8 @@ var schemaSQL string
 // root; using the same path from cmd/api and cmd/mcp is what lets them share
 // one store.
 func OpenAt(path string) (*sql.DB, error) {
-	if dir := filepath.Dir(path); dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return nil, err
-		}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return nil, err
 	}
 	db, err := sql.Open("sqlite", path)
 	if err != nil {

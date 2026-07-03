@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -64,7 +65,16 @@ func TestStdioBinarySharesDatabase(t *testing.T) {
 
 	// Launch the MCP binary pointed at the same DB.
 	cmd := exec.Command("go", "run", "github.com/killeanjohnson/projectmanager/cmd/mcp")
-	cmd.Env = append(os.Environ(), "PM_DB_PATH="+dbPath)
+	// Filter config vars from the inherited env so a DB_PATH set in the
+	// developer's or CI environment cannot outrank the alias under test.
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		if strings.HasPrefix(kv, "DB_PATH=") || strings.HasPrefix(kv, "PM_DB_PATH=") || strings.HasPrefix(kv, "PORT=") {
+			continue
+		}
+		env = append(env, kv)
+	}
+	cmd.Env = append(env, "PM_DB_PATH="+dbPath)
 	client := mcp.NewClient(&mcp.Implementation{Name: "smoke", Version: "0.0.0"}, nil)
 	cs, err := client.Connect(ctx, &mcp.CommandTransport{Command: cmd}, nil)
 	if err != nil {

@@ -40,19 +40,24 @@ func Load() (Config, error) {
 	v := viper.New()
 	v.SetDefault("port", "4523")
 
-	defaultDB, err := defaultDBPath()
-	if err != nil {
-		return Config{}, fmt.Errorf("resolve default db path: %w", err)
-	}
-	v.SetDefault("db_path", defaultDB)
-
 	// Later names are fallbacks: DB_PATH wins over the legacy PM_DB_PATH.
 	v.BindEnv("port", "PORT")
 	v.BindEnv("db_path", "DB_PATH", "PM_DB_PATH")
 
+	// Resolve the default lazily so an explicit DB_PATH/PM_DB_PATH still
+	// works in environments without a home directory.
+	dbPath := v.GetString("db_path")
+	if dbPath == "" {
+		var err error
+		dbPath, err = defaultDBPath()
+		if err != nil {
+			return Config{}, fmt.Errorf("resolve default db path: %w", err)
+		}
+	}
+
 	return Config{
 		Port:   v.GetString("port"),
-		DBPath: v.GetString("db_path"),
+		DBPath: dbPath,
 	}, nil
 }
 
